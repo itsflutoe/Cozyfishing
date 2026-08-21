@@ -82,7 +82,7 @@ export const ZONES: Record<ZoneId, ZoneDefinition> = {
     fishPool: [
       { id: "catfish", name: "Catfish", rarity: "rare", value: 55, xp: 30 },
       { id: "golden-carp", name: "Golden Carp", rarity: "legendary", value: 180, xp: 90 },
-      { id: "neon-koi", name: "Neon Koi", rarity: "rare", value: 82, xp: 46 },
+      { id: "prism-koi", name: "Prism Koi", rarity: "rare", value: 82, xp: 46 },
       { id: "moon-eel", name: "Moon Eel", rarity: "legendary", value: 220, xp: 115 },
     ],
     palette: { ground: 0x495b66, path: 0x8f766b, water: 0x355f7a, glow: 0xd2d9d1, accent: 0xb87b67 },
