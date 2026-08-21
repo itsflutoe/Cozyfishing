@@ -37,6 +37,8 @@ export class FishingScene extends Phaser.Scene {
   private playerBarSize = 56;
   private fishDartTimer = 0;
   private pendingFish: CatchResult | null = null;
+  private reelHolding = false;
+  private cursorVelocity = 0;
   private reelTrackBg!: Phaser.GameObjects.Rectangle;
   private reelProgressBg!: Phaser.GameObjects.Rectangle;
   private reelProgressFill!: Phaser.GameObjects.Rectangle;
@@ -53,6 +55,9 @@ export class FishingScene extends Phaser.Scene {
   create() {
     this.controls = this.input.keyboard?.addKeys({ up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S, left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D, arrowUp: Phaser.Input.Keyboard.KeyCodes.UP, arrowDown: Phaser.Input.Keyboard.KeyCodes.DOWN, arrowLeft: Phaser.Input.Keyboard.KeyCodes.LEFT, arrowRight: Phaser.Input.Keyboard.KeyCodes.RIGHT, interact: Phaser.Input.Keyboard.KeyCodes.F, cast: Phaser.Input.Keyboard.KeyCodes.SPACE }) as Controls;
     this.bridge.on("game-command", this.handleCommand, this);
+    this.input.on("pointerdown", () => { this.reelHolding = true; });
+    this.input.on("pointerup", () => { this.reelHolding = false; });
+    this.input.on("pointerupoutside", () => { this.reelHolding = false; });
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.setRoundPixels(true);
     this.setupFollowCamera();
@@ -211,7 +216,7 @@ export class FishingScene extends Phaser.Scene {
       strokeThickness: 4,
     }).setOrigin(0.5);
 
-    const hint = this.add.text(0, 132, "W/S or stick", {
+    const hint = this.add.text(0, 132, "Hold to lift", {
       fontFamily: "monospace",
       fontSize: "10px",
       color: "#e8d49a",
@@ -236,8 +241,10 @@ export class FishingScene extends Phaser.Scene {
     if (!this.reelUi) return;
     const w = this.scale.width || 400;
     const h = this.scale.height || 600;
-    // Sit on the right, clear of bottom mobile controls
-    this.reelUi.setPosition(w - 48, Math.min(h * 0.42, h - 200));
+    // Prefer right of center (beside player who is camera-centered), clear of bottom controls
+    const x = Math.min(w * 0.72, w - 52);
+    const y = Math.min(h * 0.45, h - 190);
+    this.reelUi.setPosition(x, y);
   }
 
   private interact() {
@@ -282,8 +289,10 @@ export class FishingScene extends Phaser.Scene {
     const difficulty = this.fishDifficulty(this.pendingFish.rarity);
 
     this.catchProgress = 25;
-    this.fishPosition = 40 + Math.random() * 20; // 0–100 along bar
-    this.cursorPosition = 50;
+    this.fishPosition = 40 + Math.random() * 20;
+    this.cursorPosition = 55;
+    this.cursorVelocity = 0;
+    this.reelHolding = false;
     this.fishVelocity = (Math.random() > 0.5 ? 1 : -1) * difficulty.speed;
     this.playerBarSize = difficulty.barSize;
     this.fishDartTimer = 0.4 + Math.random() * 0.6;
@@ -293,9 +302,9 @@ export class FishingScene extends Phaser.Scene {
     this.reelUi.setVisible(true);
     this.syncReelVisuals();
 
-    this.emit({ type: "fishing", phase: "reeling", hint: "Keep the fish in the green bar!" });
-    this.emit({ type: "notice", title: "A bite!", body: "Move the green bar with W/S or the joystick.", tone: "good" });
-    this.hintText.setText("Keep the fish in the green bar!");
+    this.emit({ type: "fishing", phase: "reeling", hint: "Hold to raise the green bar — keep the fish inside!" });
+    this.emit({ type: "notice", title: "A bite!", body: "Hold click/Space/Cast to lift the bar. Release to drop it.", tone: "good" });
+    this.hintText.setText("Hold to raise the bar!");
     this.reelProgressText.setText("!");
   }
 
@@ -314,42 +323,51 @@ export class FishingScene extends Phaser.Scene {
 
   private updateReeling(delta: number) {
     const seconds = delta / 1000;
-    const trackHalf = 100; // logical 0–100 maps to ±110 px
+    const trackH = 200;
 
-    // Player bar control: W/S, arrows, or joystick vertical
-    const keyboard =
-      (this.controls.up.isDown || this.controls.arrowUp.isDown ? -1 : 0) +
-      (this.controls.down.isDown || this.controls.arrowDown.isDown ? 1 : 0);
-    const stick = this.touchMove.y;
-    const input = Phaser.Math.Clamp(keyboard + stick, -1, 1);
-    this.cursorPosition = Phaser.Math.Clamp(this.cursorPosition + input * 70 * seconds, 0, 100);
+    // Stardew control: HOLD click / Space / Cast / stick-up to raise bar; release = gravity down
+    const keyHold =
+      this.controls.cast.isDown ||
+      this.controls.up.isDown ||
+      this.controls.arrowUp.isDown ||
+      this.controls.interact.isDown;
+    const stickHold = this.touchMove.y < -0.25;
+    const holding = this.reelHolding || keyHold || stickHold;
 
-    // Fish movement with occasional darts
+    // Physics on player bar (0 = top of track in Stardew is up, we use 0 top / 100 bottom)
+    const lift = holding ? -95 : 0; // upward force while holding
+    const gravity = 70;
+    this.cursorVelocity = (this.cursorVelocity ?? 0) + (lift + gravity) * seconds;
+    this.cursorVelocity = Phaser.Math.Clamp(this.cursorVelocity, -120, 140);
+    this.cursorPosition = Phaser.Math.Clamp(this.cursorPosition + this.cursorVelocity * seconds, 0, 100);
+    if (this.cursorPosition <= 0 || this.cursorPosition >= 100) this.cursorVelocity *= 0.35;
+
+    // Fish AI — dartier with rarity
+    const rarity = this.pendingFish?.rarity ?? "common";
+    const d = this.fishDifficulty(rarity);
     this.fishDartTimer -= seconds;
     if (this.fishDartTimer <= 0) {
-      const rarity = this.pendingFish?.rarity ?? "common";
-      const d = this.fishDifficulty(rarity);
-      this.fishVelocity = (Math.random() > 0.5 ? 1 : -1) * d.speed * (0.7 + Math.random() * 0.6);
-      this.fishDartTimer = 0.35 + Math.random() * (1.1 / d.dart);
+      const target = Math.random() * 100;
+      this.fishVelocity = (target < this.fishPosition ? -1 : 1) * d.speed * (0.55 + Math.random() * 0.9);
+      this.fishDartTimer = 0.25 + Math.random() * (1.2 / d.dart);
     }
     this.fishPosition += this.fishVelocity * seconds;
-    if (this.fishPosition >= 100) {
+    if (this.fishPosition > 100) {
       this.fishPosition = 100;
-      this.fishVelocity = -Math.abs(this.fishVelocity);
-    } else if (this.fishPosition <= 0) {
+      this.fishVelocity *= -0.8;
+    } else if (this.fishPosition < 0) {
       this.fishPosition = 0;
-      this.fishVelocity = Math.abs(this.fishVelocity);
+      this.fishVelocity *= -0.8;
     }
 
-    // Overlap test: fish inside player bar
-    const halfBar = (this.playerBarSize / 220) * 50; // barSize px → logical units on 0–100 track (~220px tall)
-    const aligned = Math.abs(this.cursorPosition - this.fishPosition) < halfBar + 3;
+    // Catch zone = green bar height around cursor
+    const halfBar = (this.playerBarSize / trackH) * 50;
+    const aligned = Math.abs(this.cursorPosition - this.fishPosition) <= halfBar + 2;
 
-    this.catchProgress = Phaser.Math.Clamp(
-      this.catchProgress + (aligned ? 32 : -22) * seconds,
-      0,
-      100,
-    );
+    // Progress: faster catch for common, slower for legendary
+    const gain = 26 + (70 - this.playerBarSize) * 0.15;
+    const loss = 20 + d.dart * 6;
+    this.catchProgress = Phaser.Math.Clamp(this.catchProgress + (aligned ? gain : -loss) * seconds, 0, 100);
 
     this.syncReelVisuals();
     this.reelProgressText.setText(aligned ? "!" : "…");
@@ -380,6 +398,8 @@ export class FishingScene extends Phaser.Scene {
     this.updateRodPose();
     this.hintText.setText("Walk to the water's edge, then cast a line.");
     this.touchMove = { x: 0, y: 0 };
+    this.reelHolding = false;
+    this.cursorVelocity = 0;
 
     if (!success) {
       this.pendingFish = null;
@@ -395,8 +415,14 @@ export class FishingScene extends Phaser.Scene {
     this.emit({ type: "notice", title: `${fish.rarity} catch`, body: `A ${fish.name} will sell for ${fish.value} coins.`, tone: "good" });
   }
 
-  private pickFish():
-  private pickFish(): CatchResult { const pool = getZone(this.zoneId).fishPool; const roll = Math.random() * 100; const candidates = pool.filter(fish => fish.rarity === "legendary" ? roll < 3 : fish.rarity === "rare" ? roll < 18 : fish.rarity === "uncommon" ? roll < 54 : true); return candidates[Math.floor(Math.random() * candidates.length)] ?? pool[0]; }
+  private pickFish(): CatchResult {
+    const pool = getZone(this.zoneId).fishPool;
+    const roll = Math.random() * 100;
+    const candidates = pool.filter(fish =>
+      fish.rarity === "legendary" ? roll < 3 : fish.rarity === "rare" ? roll < 18 : fish.rarity === "uncommon" ? roll < 54 : true,
+    );
+    return candidates[Math.floor(Math.random() * candidates.length)] ?? pool[0];
+  }
 
   private enterZone(zoneId: ZoneId, announce: boolean) {
     const zone = getZone(zoneId); if (zone.requiredLevel > 1 && zoneId === "moonlit-inlet") { this.emit({ type: "notice", title: "A little later", body: "Moonlit Inlet opens at level 3. Keep practicing at Glasswater Lake.", tone: "warn" }); return; }
