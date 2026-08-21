@@ -1,4 +1,4 @@
-import PhaserGame, { type PhaserGameHandle } from "@/components/game/PhaserGame";
+import PhaserGame, { type PhaserGameHandle } from "@/game/PhaserGame";
 import type { CatchResult, Direction, FishingPhase, GameBridgeEvent, PublicPlayerState, ZoneId } from "@/game/types";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { beginFishingAttempt, loadPlayerSave, settleFishingAttempt } from "@/lib/gameApi";
