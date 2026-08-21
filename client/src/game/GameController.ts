@@ -37,6 +37,13 @@ export class GameController {
     this.bridge.emit("game-command", command);
   }
 
+  focus() {
+    const canvas = this.game?.canvas;
+    if (!canvas) return;
+    canvas.tabIndex = 0;
+    canvas.focus({ preventScroll: true });
+  }
+
   destroy() {
     this.bridge.off("game-event", this.onEvent);
     this.game?.destroy(true);
