@@ -1,0 +1,38 @@
+# Project TODO
+
+- [ ] Add Phaser and implement a canvas-based top-down game world that is separate from the React interface layer.
+- [ ] Create a cohesive retro 8-bit visual system using a deep navy foundation with neon lime, cyan, magenta, and yellow accents.
+- [ ] Build three playable fishing zones with distinct map layouts, unlock levels, and configurable species pools.
+- [ ] Implement keyboard and touch player movement, animated sprite states, collision boundaries, and zone transitions.
+- [ ] Implement a full cast, bite, wait, reel-in, and catch-result fishing minigame with bait, stamina, and rod durability costs.
+- [ ] Add database-driven fish species, rarity tiers, spawn rates, sell values, rods, bait, consumables, and zone settings.
+- [ ] Add authenticated player profiles with persistent currency, XP, level, unlocked zones, inventory, equipped rod, and chest storage.
+- [ ] Build React interfaces for HUD, inventory, equipment, storage chest, shop, fish selling, progression, and mobile controls.
+- [ ] Implement live location-scoped multiplayer presence for player positions, movement states, fishing states, and usernames.
+- [ ] Implement live proximity-independent location chat with configurable message validation and player activity cleanup.
+- [ ] Implement secure player-to-player trade requests, offer confirmation, and transactional item exchange foundations.
+- [ ] Build an admin dashboard to configure species, zones, shop prices, economy parameters, and scheduled world-event settings.
+- [ ] Implement configurable, idempotent scheduled world updates for fish population resets, rare-fish rotations, and seasonal events.
+- [ ] Apply the administrator-only Supabase operations migration and promote the intended game owner profile to the `admin` role.
+- [x] Build an authenticated `/admin` control deck for fish availability, zones, documented settings, and seasonal event scheduling.
+- [ ] Add database schema migrations, backend validation, authorization checks, and transactional game mutations.
+- [ ] Write unit tests covering gameplay calculations, secure transactions, configuration validation, and scheduled event handling.
+- [ ] Verify the game visually at desktop and mobile breakpoints, verify multiplayer synchronization, and resolve runtime errors.
+- [ ] Save a final project checkpoint and deliver preview, admin-access guidance, and publishing instructions.
+- [ ] Replace the initial managed-template dependencies with a Vercel-compatible React/TypeScript frontend and Supabase client architecture.
+- [ ] Configure Supabase Auth, PostgreSQL persistence, Row Level Security policies, and Realtime channels using the user-provided Supabase project credentials.
+- [ ] Configure Supabase Realtime broadcast/presence for location-scoped movement, fishing state, and chat without a persistent custom game server.
+- [ ] Add a free-tier-compatible scheduled event plan using Vercel Cron and an authenticated server endpoint, subject to Vercel free-plan schedule limits.
+- [ ] Prepare a GitHub-ready repository with environment-variable documentation and Vercel deployment configuration.
+- [x] Document the free-tier architecture, capacity envelope, and daily scheduled-event constraint for GitHub, Vercel, and Supabase.
+- [x] Add a Supabase SQL migration that creates persistence tables, RLS policies, starter data, and initial trusted world-update functions.
+- [x] Add Vercel-compatible static-build, environment, secure daily-cron, and deployment documentation files.
+- [x] Add Supabase email authentication screens and location-scoped Realtime Broadcast/Presence/chat wiring for authenticated players.
+- [x] Apply the secure Supabase transaction migration for fishing settlement, shop purchases, sales, storage transfers, and consumable use.
+- [x] Correct the secure transaction migration compile error, provide a replacement SQL attachment, and verify the RPC functions after application.
+- [x] Add authenticated Phaser fishing-attempt and catch-settlement calls that use secure Supabase RPC functions when a player is signed in.
+- [x] Verify the Supabase shop-purchase, fish-sale, consumable-use, and storage-transfer RPC functions return expected protected errors after migration application.
+- [x] Prevent a signed-in player from receiving local fish or XP when secure fishing-attempt creation or settlement fails.
+- [x] Add automated coverage for the authenticated fishing failure path to prove that no unsaved local reward is granted.
+- [ ] Add integration-level catch-resolution tests that confirm missing or rejected authenticated settlements leave fish and XP unchanged.
+- [x] Restore the development preview after its management panel became stuck on the build status screen.

@@ -1,0 +1,11 @@
+{
+  "framework": "vite",
+  "buildCommand": "pnpm build:vercel",
+  "outputDirectory": "dist-vercel",
+  "crons": [
+    {
+      "path": "/api/cron/daily-world-update",
+      "schedule": "0 5 * * *"
+    }
+  ]
+}
