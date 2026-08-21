@@ -17,17 +17,15 @@ export class GameController {
     this.game = new Phaser.Game({
       type: Phaser.AUTO,
       parent,
-      width: 960,
-      height: 540,
-      backgroundColor: "#07132f",
+      width: parent.clientWidth || 960,
+      height: parent.clientHeight || 540,
+      backgroundColor: "#5a7a40",
       pixelArt: true,
       antialias: false,
       render: { antialias: false, roundPixels: true },
       scale: {
-        mode: Phaser.Scale.FIT,
+        mode: Phaser.Scale.RESIZE,
         autoCenter: Phaser.Scale.CENTER_BOTH,
-        width: 960,
-        height: 540,
       },
       scene: [scene],
     });
