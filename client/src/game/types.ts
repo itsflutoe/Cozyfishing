@@ -3,12 +3,17 @@ export type FishingPhase = "idle" | "casting" | "waiting" | "bite" | "reeling";
 
 export type ZoneId = "harbor-hub" | "glasswater-lake" | "moonlit-inlet";
 
+export type FishQuality = "normal" | "silver" | "gold" | "iridium";
+
 export type CatchResult = {
   id: string;
   name: string;
   rarity: "common" | "uncommon" | "rare" | "legendary";
   value: number;
   xp: number;
+  /** Optional quality tier from fishing performance (Stardew-style). */
+  quality?: FishQuality;
+  perfect?: boolean;
 };
 
 export type PublicPlayerState = {
