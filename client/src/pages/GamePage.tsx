@@ -150,6 +150,14 @@ export default function GamePage() {
     gameRef.current?.send({ type: command });
   }
 
+  function startMove(event: React.PointerEvent<HTMLButtonElement>, x: number, y: number) {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    gameRef.current?.send({ type: "move", x, y });
+  }
+
+  function stopMove() { gameRef.current?.send({ type: "move", x: 0, y: 0 }); }
+
   function buy(id: "bait" | "lunch" | "tide-rod", cost: number, name: string, qty = 1) {
     if (coins < cost) {
       setNotice({ title: "NOT ENOUGH COINS", body: `You need ${cost - coins} more coins for ${name}.`, tone: "warn" });
@@ -204,7 +212,7 @@ export default function GamePage() {
   return (
     <main className="game-shell">
       <section className="game-topbar">
-        <div className="brand-lockup"><Sparkles size={18} /><span>NEON TIDES</span><small>FISHING CLUB</small></div>
+        <div className="brand-lockup"><Sparkles size={18} /><span>NEON TIDES</span><small>COZY FISHING CLUB</small></div>
         <div className="top-status"><Badge className="neon-badge"><Map size={13} /> {zone.name}</Badge><Badge className="neon-badge cyan">LV {level}</Badge><Badge className="neon-badge yellow">{coins} C</Badge></div>
         <div className="connection-state"><span className="live-dot" />{isSupabaseConfigured && auth.session ? `LIVE · ${realtime.onlineCount} ANGLER${realtime.onlineCount === 1 ? "" : "S"}` : "LOCAL PREVIEW"}</div>
       </section>
@@ -226,6 +234,16 @@ export default function GamePage() {
             <div><span className={`phase-dot ${phase}`} /> <strong>{phase === "idle" ? "READY TO FISH" : phase.toUpperCase()}</strong><small>{hint}</small></div>
             <div className="action-buttons"><Button onClick={() => send("cast")} className="lime-action"><Fish size={16} /> CAST</Button><Button onClick={() => send("interact")} className="cyan-action">INTERACT</Button></div>
           </div>
+          <div className="touch-controls" aria-label="Mobile movement and fishing controls">
+            <div className="touch-dpad">
+              <button aria-label="Move up" onPointerDown={event => startMove(event, 0, -1)} onPointerUp={stopMove} onPointerCancel={stopMove}>▲</button>
+              <button aria-label="Move left" onPointerDown={event => startMove(event, -1, 0)} onPointerUp={stopMove} onPointerCancel={stopMove}>◀</button>
+              <span />
+              <button aria-label="Move right" onPointerDown={event => startMove(event, 1, 0)} onPointerUp={stopMove} onPointerCancel={stopMove}>▶</button>
+              <button aria-label="Move down" onPointerDown={event => startMove(event, 0, 1)} onPointerUp={stopMove} onPointerCancel={stopMove}>▼</button>
+            </div>
+            <div className="touch-actions"><button className="touch-use" onPointerDown={() => send("interact")}>USE</button><button className="touch-cast" onPointerDown={() => send("cast")}><Fish size={20} /> CAST</button></div>
+          </div>
         </section>
 
         <aside className="hud-column right-hud">
@@ -236,7 +254,7 @@ export default function GamePage() {
         </aside>
       </section>
 
-      <section className="mobile-actions"><Button onClick={() => send("cast")} className="lime-action"><Fish size={16} /> CAST</Button><Button onClick={() => send("interact")} className="cyan-action">INTERACT</Button><Button variant="outline" onClick={() => setPanel("inventory")}>BAG</Button><Button variant="outline" onClick={() => setPanel("shop")}>SHOP</Button></section>
+      <section className="mobile-actions"><Button variant="outline" onClick={() => setPanel("inventory")}>BAG</Button><Button variant="outline" onClick={() => setPanel("storage")}>CHEST</Button><Button variant="outline" onClick={() => setPanel("shop")}>SHOP</Button></section>
 
       <Dialog open={Boolean(panel)} onOpenChange={open => !open && setPanel(null)}>
         <DialogContent className="game-dialog">
