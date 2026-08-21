@@ -362,15 +362,7 @@ export default function GamePage() {
               <small>{hint}</small>
             </div>
             <div className="action-buttons">
-              <Button
-                className="cozy-btn"
-                onPointerDown={() => {
-                  send("cast");
-                  gameRef.current?.send({ type: "move", x: 0, y: -1 });
-                }}
-                onPointerUp={() => gameRef.current?.send({ type: "move", x: 0, y: 0 })}
-                onPointerLeave={() => gameRef.current?.send({ type: "move", x: 0, y: 0 })}
-              >
+              <Button onClick={() => send("cast")} className="cozy-btn">
                 <Fish size={16} /> Cast
               </Button>
               <Button onClick={() => send("interact")} className="cozy-btn secondary">
@@ -394,19 +386,7 @@ export default function GamePage() {
               <button type="button" className="touch-use" onPointerDown={() => send("interact")}>
                 Use
               </button>
-              <button
-                type="button"
-                className="touch-cast"
-                onPointerDown={event => {
-                  event.preventDefault();
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                  send("cast");
-                  // Stardew: hold Cast to lift the green bar while reeling
-                  gameRef.current?.send({ type: "move", x: 0, y: -1 });
-                }}
-                onPointerUp={() => gameRef.current?.send({ type: "move", x: 0, y: 0 })}
-                onPointerCancel={() => gameRef.current?.send({ type: "move", x: 0, y: 0 })}
-              >
+              <button type="button" className="touch-cast" onPointerDown={() => send("cast")}>
                 <Fish size={18} /> Cast
               </button>
             </div>
