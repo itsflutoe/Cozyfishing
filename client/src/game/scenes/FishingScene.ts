@@ -49,6 +49,8 @@ export class FishingScene extends Phaser.Scene {
     this.bridge.on("game-command", this.handleCommand, this);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.setRoundPixels(true);
+    this.fitCameraToWorld();
+    this.scale.on("resize", this.fitCameraToWorld, this);
     this.drawZone(); this.createPlayer(); this.createHud(); this.enterZone(this.zoneId, false);
   }
 
@@ -257,5 +259,15 @@ export class FishingScene extends Phaser.Scene {
   private updateRemotePlayer(remote: RemoteAvatar, delta: number) { const amount = Math.min(1, delta / 120); remote.player.x = Phaser.Math.Linear(remote.player.x, remote.state.x, amount); remote.player.y = Phaser.Math.Linear(remote.player.y, remote.state.y, amount); remote.label.setPosition(remote.player.x, remote.player.y - 37); const angles: Record<Direction, number> = { down: 38, up: 142, left: -62, right: 62 }; const fishing = remote.state.state !== "idle"; remote.rod.setAngle(fishing ? (remote.state.direction === "left" ? -72 : 72) : angles[remote.state.direction]); remote.rod.setPosition(remote.state.direction === "left" ? -21 : 21, remote.state.direction === "up" ? -16 : -4); }
   private removeRemotePlayer(playerId: string) { const remote = this.remotePlayers.get(playerId); if (!remote) return; remote.player.destroy(true); remote.label.destroy(); this.remotePlayers.delete(playerId); }
   private addDelay(delay: number, callback: () => void) { this.activeTimers.push(this.time.delayedCall(delay, callback)); }
+
+  /** Fill the canvas with the world (cover) so there is no empty letterbox. */
+  private fitCameraToWorld() {
+    const w = this.scale.width;
+    const h = this.scale.height;
+    if (!w || !h) return;
+    const zoom = Math.max(w / WORLD_WIDTH, h / WORLD_HEIGHT);
+    this.cameras.main.setZoom(zoom);
+    this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+  }
   private emit(event: GameBridgeEvent) { this.bridge.emit("game-event", event); }
 }
