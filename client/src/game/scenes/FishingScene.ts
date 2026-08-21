@@ -49,9 +49,9 @@ export class FishingScene extends Phaser.Scene {
     this.bridge.on("game-command", this.handleCommand, this);
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
     this.cameras.main.setRoundPixels(true);
-    this.fitCameraToWorld();
-    this.scale.on("resize", this.fitCameraToWorld, this);
-    this.drawZone(); this.createPlayer(); this.createHud(); this.enterZone(this.zoneId, false);
+    this.setupFollowCamera();
+    this.scale.on("resize", this.setupFollowCamera, this);
+    this.drawZone(); this.createPlayer(); this.createHud(); this.setupFollowCamera(); this.enterZone(this.zoneId, false);
   }
 
   shutdown() { this.bridge.off("game-command", this.handleCommand, this); this.activeTimers.forEach(timer => timer.remove(false)); this.activeTimers = []; }
@@ -239,7 +239,7 @@ export class FishingScene extends Phaser.Scene {
   private enterZone(zoneId: ZoneId, announce: boolean) {
     const zone = getZone(zoneId); if (zone.requiredLevel > 1 && zoneId === "moonlit-inlet") { this.emit({ type: "notice", title: "A little later", body: "Moonlit Inlet opens at level 3. Keep practicing at Glasswater Lake.", tone: "warn" }); return; }
     this.zoneId = zoneId; this.phase = "idle"; this.touchMove = { x: 0, y: 0 }; this.activeTimers.forEach(timer => timer.remove(false)); this.activeTimers = [];
-    if (this.children.length) { this.drawZone(); this.createPlayer(); this.createHud(); }
+    if (this.children.length) { this.drawZone(); this.createPlayer(); this.createHud(); this.setupFollowCamera(); }
     this.zoneText.setText(`${zone.name} · ${zone.subtitle}`); this.emit({ type: "zone", zoneId, zoneName: zone.name, objective: zone.objective }); this.emit({ type: "fishing", phase: "idle", hint: "Walk to the water's edge, then cast a line." });
     if (announce) this.emit({ type: "notice", title: "New fishing spot", body: `${zone.name} is ready for a quiet afternoon of fishing.`, tone: "info" });
   }
@@ -260,14 +260,27 @@ export class FishingScene extends Phaser.Scene {
   private removeRemotePlayer(playerId: string) { const remote = this.remotePlayers.get(playerId); if (!remote) return; remote.player.destroy(true); remote.label.destroy(); this.remotePlayers.delete(playerId); }
   private addDelay(delay: number, callback: () => void) { this.activeTimers.push(this.time.delayedCall(delay, callback)); }
 
-  /** Fill the canvas with the world (cover) so there is no empty letterbox. */
-  private fitCameraToWorld() {
-    const w = this.scale.width;
-    const h = this.scale.height;
-    if (!w || !h) return;
-    const zoom = Math.max(w / WORLD_WIDTH, h / WORLD_HEIGHT);
-    this.cameras.main.setZoom(zoom);
-    this.cameras.main.centerOn(WORLD_WIDTH / 2, WORLD_HEIGHT / 2);
+  /**
+   * Stardew-style camera: player stays centered; map scrolls under them.
+   * Zoom shows a readable slice of the world (not the whole map at once).
+   */
+  private setupFollowCamera() {
+    const cam = this.cameras.main;
+    const w = this.scale.width || 1;
+    const h = this.scale.height || 1;
+    // Target view size in world pixels — larger on desktop, closer on phone
+    const targetView = Math.min(520, Math.max(360, Math.min(w, h) * 0.95));
+    const zoom = Math.max(w, h) / targetView;
+    // Clamp so we never zoom out past showing the whole world
+    const maxZoomOut = Math.min(w / WORLD_WIDTH, h / WORLD_HEIGHT);
+    cam.setZoom(Math.max(zoom, maxZoomOut * 1.05));
+    cam.setBounds(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
+    cam.setRoundPixels(true);
+    if (this.player) {
+      cam.startFollow(this.player, true, 0.18, 0.18);
+      cam.setFollowOffset(0, 24); // bias slightly up so feet/UI don't clip the character
+      cam.centerOn(this.player.x, this.player.y);
+    }
   }
   private emit(event: GameBridgeEvent) { this.bridge.emit("game-event", event); }
 }
