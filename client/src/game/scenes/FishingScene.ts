@@ -11,8 +11,6 @@ const WORLD_HEIGHT = 540;
 const PLAYER_SPEED = 176;
 const INK = 0x293b36;
 const CREAM = "#fff5d8";
-const SCALLYWAG_ISLANDS = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663905510199/pNSAFEGYjVYiOnJg.png";
-
 export class FishingScene extends Phaser.Scene {
   private readonly bridge: Phaser.Events.EventEmitter;
   private zoneId: ZoneId = "harbor-hub";
@@ -51,7 +49,35 @@ export class FishingScene extends Phaser.Scene {
   constructor(bridge: Phaser.Events.EventEmitter) { super({ key: "FishingScene" }); this.bridge = bridge; }
 
   preload() {
-    if (!this.textures.exists("scallywag-islands")) this.load.image("scallywag-islands", SCALLYWAG_ISLANDS);
+    // Local procedural textures only (no external CDN art).
+    this.ensurePixelTextures();
+  }
+
+  /** Tiny cozy pixel textures generated at runtime so the game never depends on remote images. */
+  private ensurePixelTextures() {
+    if (!this.textures.exists("tex-grass")) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      g.fillStyle(0x7e9a67, 1);
+      g.fillRect(0, 0, 16, 16);
+      g.fillStyle(0x8fad72, 1);
+      g.fillRect(2, 3, 3, 2);
+      g.fillRect(9, 8, 3, 2);
+      g.fillStyle(0x6d8a58, 1);
+      g.fillRect(11, 2, 2, 2);
+      g.fillRect(4, 11, 2, 2);
+      g.generateTexture("tex-grass", 16, 16);
+      g.destroy();
+    }
+    if (!this.textures.exists("tex-water")) {
+      const g = this.make.graphics({ x: 0, y: 0 }, false);
+      g.fillStyle(0x4d91a8, 1);
+      g.fillRect(0, 0, 16, 16);
+      g.fillStyle(0x6aadbf, 1);
+      g.fillRect(1, 4, 6, 2);
+      g.fillRect(8, 10, 6, 2);
+      g.generateTexture("tex-water", 16, 16);
+      g.destroy();
+    }
   }
 
   create() {
@@ -113,85 +139,200 @@ export class FishingScene extends Phaser.Scene {
   }
 
   private drawZone() {
-    this.remotePlayers.clear(); this.children.removeAll();
+    this.remotePlayers.clear();
+    this.children.removeAll();
     const zone = getZone(this.zoneId);
-    const usesScallywagMap = zone.id !== "moonlit-inlet" && this.textures.exists("scallywag-islands");
-    if (usesScallywagMap) {
-      this.add.image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "scallywag-islands").setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT).setOrigin(0.5);
+
+    // Ground fill + tiled grass
+    this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, zone.palette.ground).setOrigin(0.5);
+    if (this.textures.exists("tex-grass")) {
+      const tile = this.add.tileSprite(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, "tex-grass").setOrigin(0.5);
+      tile.setTint(zone.palette.ground);
+      tile.setAlpha(0.55);
     } else {
-      this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, zone.palette.ground).setOrigin(0.5);
-      for (let x = 12; x < WORLD_WIDTH; x += 24) for (let y = 16; y < WORLD_HEIGHT; y += 24) {
-        const color = (x / 24 + y / 24) % 3 === 0 ? 0xaec381 : (x / 24 + y / 24) % 2 === 0 ? 0x74935d : 0x8fa86c;
-        this.add.rectangle(x, y, 4, 3, color, 0.58).setOrigin(0.5);
+      for (let x = 12; x < WORLD_WIDTH; x += 20) {
+        for (let y = 16; y < WORLD_HEIGHT; y += 20) {
+          const color = (x / 20 + y / 20) % 3 === 0 ? 0xaec381 : (x / 20 + y / 20) % 2 === 0 ? 0x74935d : 0x8fa86c;
+          this.add.rectangle(x, y, 3, 3, color, 0.5).setOrigin(0.5);
+        }
       }
-      zone.water.forEach(water => this.drawWater(water, zone.palette.water, zone.palette.glow));
+    }
+
+    // Soft dirt patches
+    for (let i = 0; i < 8; i++) {
+      const px = 80 + (i * 97) % (WORLD_WIDTH - 120);
+      const py = 200 + (i * 73) % (WORLD_HEIGHT - 220);
+      this.add.ellipse(px, py, 40 + (i % 3) * 12, 18, 0x8b7355, 0.22);
+    }
+
+    zone.water.forEach(water => this.drawWater(water, zone.palette.water, zone.palette.glow));
+
+    // Paths / boardwalks per zone feel
+    if (zone.id === "harbor-hub") {
       this.drawBoardwalk(96, 488, 764, zone.palette.path);
       this.drawBoardwalk(334, 320, 240, zone.palette.path);
+      this.drawBoardwalk(400, 260, 80, zone.palette.path);
+    } else if (zone.id === "glasswater-lake") {
+      this.drawBoardwalk(100, 400, 180, zone.palette.path);
+      this.drawBoardwalk(780, 460, 120, zone.palette.path);
+    } else {
+      this.drawBoardwalk(100, 400, 160, zone.palette.path);
     }
-    this.drawProps(zone.interactions, zone.palette.accent, zone.palette.glow, !usesScallywagMap);
+
+    // Decorative flowers
+    for (let i = 0; i < 14; i++) {
+      const fx = 50 + ((i * 61) % (WORLD_WIDTH - 100));
+      const fy = 180 + ((i * 47) % (WORLD_HEIGHT - 220));
+      if (zone.water.some(w => fx > w.x && fx < w.x + w.width && fy > w.y && fy < w.y + w.height)) continue;
+      this.drawFlower(fx, fy, i % 3);
+    }
+
+    this.drawProps(zone.interactions, zone.palette.accent, zone.palette.glow, true);
+  }
+
+  private drawFlower(x: number, y: number, kind: number) {
+    const colors = [0xe8a0b0, 0xf0d060, 0xd0a0e0];
+    this.add.rectangle(x, y + 4, 2, 6, 0x4a7a40);
+    this.add.circle(x, y, 3, colors[kind]);
+    this.add.circle(x, y, 1.5, 0xfff5d0);
   }
 
   private drawBoardwalk(x: number, y: number, width: number, color: number) {
-    this.add.rectangle(x + width / 2, y, width, 28, 0x76513c).setStrokeStyle(2, INK, 0.7);
-    for (let plank = x + 4; plank < x + width; plank += 26) this.add.rectangle(plank + 10, y, 22, 22, color).setStrokeStyle(1, 0x634633, 0.6);
+    this.add.rectangle(x + width / 2, y, width, 30, 0x5c4030).setStrokeStyle(2, INK, 0.75);
+    for (let plank = x + 4; plank < x + width; plank += 24) {
+      this.add.rectangle(plank + 10, y, 20, 24, color).setStrokeStyle(1, 0x4a3224, 0.7);
+      this.add.rectangle(plank + 10, y - 8, 18, 2, 0xd4a574, 0.35);
+    }
   }
 
   private drawWater(water: WorldRect, waterColor: number, shore: number) {
-    this.add.rectangle(water.x + water.width / 2, water.y + water.height / 2, water.width + 12, water.height + 12, 0x426553).setOrigin(0.5);
-    this.add.rectangle(water.x + water.width / 2, water.y + water.height / 2, water.width, water.height, waterColor).setOrigin(0.5).setStrokeStyle(2, shore, 0.92);
-    for (let x = water.x + 20; x < water.x + water.width - 10; x += 42) for (let y = water.y + 18; y < water.y + water.height - 8; y += 34) {
-      const wave = this.add.rectangle(x, y, 14, 3, shore, 0.48).setOrigin(0.5);
-      this.tweens.add({ targets: wave, x: x + 8, alpha: 0.16, duration: 1500, yoyo: true, repeat: -1, delay: (x + y) % 700 });
+    // Shore shadow
+    this.add.rectangle(water.x + water.width / 2, water.y + water.height / 2, water.width + 14, water.height + 14, 0x3a5a48, 0.9).setOrigin(0.5);
+    const body = this.add.rectangle(water.x + water.width / 2, water.y + water.height / 2, water.width, water.height, waterColor).setOrigin(0.5).setStrokeStyle(3, shore, 0.85);
+    if (this.textures.exists("tex-water")) {
+      const tile = this.add.tileSprite(water.x + water.width / 2, water.y + water.height / 2, water.width - 4, water.height - 4, "tex-water").setOrigin(0.5);
+      tile.setAlpha(0.45);
+      this.tweens.add({ targets: tile, tilePositionX: 16, duration: 4000, repeat: -1 });
+    }
+    for (let x = water.x + 22; x < water.x + water.width - 12; x += 48) {
+      for (let y = water.y + 20; y < water.y + water.height - 10; y += 36) {
+        const wave = this.add.rectangle(x, y, 16, 3, shore, 0.4).setOrigin(0.5);
+        this.tweens.add({
+          targets: wave,
+          x: x + 10,
+          alpha: 0.12,
+          duration: 1600 + (x + y) % 400,
+          yoyo: true,
+          repeat: -1,
+          delay: (x + y) % 800,
+        });
+      }
+    }
+    // Small sparkles
+    for (let i = 0; i < 5; i++) {
+      const sx = water.x + 30 + Math.random() * (water.width - 60);
+      const sy = water.y + 20 + Math.random() * (water.height - 40);
+      const spark = this.add.circle(sx, sy, 1.5, 0xffffff, 0.7);
+      this.tweens.add({ targets: spark, alpha: 0.1, duration: 900 + i * 200, yoyo: true, repeat: -1 });
     }
   }
 
   private drawProps(interactions: WorldInteraction[], accent: number, shore: number, addTrees: boolean) {
-    if (addTrees) for (let x = 64; x < WORLD_WIDTH; x += 142) this.drawTree(x, 428 - ((x / 36) % 3) * 25, accent);
+    if (addTrees) {
+      for (let x = 56; x < WORLD_WIDTH; x += 128) {
+        this.drawTree(x, 400 - ((x / 32) % 4) * 22, 0x5f8a48);
+        if (x + 50 < WORLD_WIDTH) this.drawTree(x + 50, 430 - ((x / 28) % 3) * 18, 0x6f9a55);
+      }
+    }
     interactions.forEach(interaction => {
       if (interaction.kind === "shop") this.drawCabin(interaction.x, interaction.y, accent);
       else if (interaction.kind === "storage") this.drawChest(interaction.x, interaction.y, accent);
       else this.drawSignpost(interaction.x, interaction.y, shore);
-      const label = this.add.text(interaction.x, interaction.y + 47, interaction.label, { fontFamily: "monospace", fontSize: "10px", color: CREAM, stroke: "#314338", strokeThickness: 3, align: "center" }).setOrigin(0.5);
-      label.setShadow(1, 1, "#314338", 1);
+      this.add
+        .text(interaction.x, interaction.y + 50, interaction.label, {
+          fontFamily: "monospace",
+          fontSize: "10px",
+          color: CREAM,
+          stroke: "#314338",
+          strokeThickness: 3,
+          align: "center",
+        })
+        .setOrigin(0.5);
     });
   }
 
   private drawTree(x: number, y: number, leafColor: number) {
-    this.add.rectangle(x, y + 14, 10, 30, 0x66432d).setStrokeStyle(2, INK, 0.7);
-    this.add.rectangle(x, y - 14, 34, 28, leafColor).setStrokeStyle(2, INK, 0.75);
-    this.add.rectangle(x - 16, y - 4, 18, 22, 0x5f8050).setStrokeStyle(2, INK, 0.65);
-    this.add.rectangle(x + 16, y - 2, 18, 24, 0x6f925a).setStrokeStyle(2, INK, 0.65);
-    this.add.rectangle(x - 4, y - 25, 22, 13, 0xa8c77b).setStrokeStyle(2, INK, 0.65);
+    // Trunk
+    this.add.rectangle(x, y + 16, 12, 34, 0x6b4a2e).setStrokeStyle(2, INK, 0.85);
+    this.add.rectangle(x - 2, y + 8, 4, 8, 0x5a3c24);
+    // Layered canopy (cozy pixel clumps)
+    this.add.circle(x, y - 8, 20, leafColor).setStrokeStyle(2, INK, 0.5);
+    this.add.circle(x - 14, y + 2, 14, 0x4f7a3c).setStrokeStyle(2, INK, 0.45);
+    this.add.circle(x + 14, y + 2, 14, 0x6a9a50).setStrokeStyle(2, INK, 0.45);
+    this.add.circle(x, y - 22, 12, 0x8fbc6a).setStrokeStyle(2, INK, 0.4);
   }
 
   private drawCabin(x: number, y: number, accent: number) {
-    this.add.rectangle(x, y, 80, 48, 0x9b6041).setStrokeStyle(3, INK, 0.9);
-    this.add.triangle(x, y - 46, -48, 24, 0, -28, 48, 24, 0x6e4050).setStrokeStyle(3, INK, 0.9);
-    this.add.rectangle(x + 17, y + 11, 16, 24, 0x594032).setStrokeStyle(2, INK, 0.9);
-    this.add.rectangle(x - 18, y - 3, 18, 14, accent).setStrokeStyle(2, INK, 0.8);
+    // Body
+    this.add.rectangle(x, y + 4, 88, 52, 0xa86b45).setStrokeStyle(3, INK, 0.95);
+    // Roof
+    this.add.triangle(x, y - 42, -52, 28, 0, -26, 52, 28, 0x7a4050).setStrokeStyle(3, INK, 0.95);
+    this.add.rectangle(x, y - 18, 90, 6, 0x8a5060).setStrokeStyle(1, INK, 0.6);
+    // Door + window
+    this.add.rectangle(x + 18, y + 14, 18, 28, 0x4a3428).setStrokeStyle(2, INK, 0.9);
+    this.add.circle(x + 24, y + 14, 2, 0xd4a574);
+    this.add.rectangle(x - 20, y - 2, 20, 16, accent).setStrokeStyle(2, INK, 0.85);
+    this.add.rectangle(x - 20, y - 2, 2, 16, INK, 0.35);
+    this.add.rectangle(x - 20, y - 2, 20, 2, INK, 0.35);
+    // Chimney
+    this.add.rectangle(x + 28, y - 36, 12, 18, 0x6a5550).setStrokeStyle(2, INK, 0.8);
   }
 
   private drawChest(x: number, y: number, accent: number) {
-    this.add.rectangle(x, y, 44, 30, 0x9a603c).setStrokeStyle(3, INK, 0.9);
-    this.add.rectangle(x, y - 12, 44, 10, 0xc6884e).setStrokeStyle(2, INK, 0.75);
-    this.add.rectangle(x, y + 2, 7, 8, accent).setStrokeStyle(1, INK, 0.8);
+    this.add.rectangle(x, y + 2, 48, 32, 0x9a603c).setStrokeStyle(3, INK, 0.95);
+    this.add.rectangle(x, y - 12, 48, 12, 0xc6884e).setStrokeStyle(2, INK, 0.85);
+    this.add.rectangle(x, y - 6, 48, 3, 0x7a4a28);
+    this.add.rectangle(x, y + 4, 10, 10, accent).setStrokeStyle(2, INK, 0.9);
+    this.add.rectangle(x, y + 4, 4, 4, 0xf0d060);
   }
 
   private drawSignpost(x: number, y: number, color: number) {
-    this.add.rectangle(x, y + 8, 8, 38, 0x714b32).setStrokeStyle(2, INK, 0.8);
-    this.add.rectangle(x, y - 10, 34, 16, color).setStrokeStyle(2, INK, 0.8);
+    this.add.rectangle(x, y + 10, 8, 42, 0x714b32).setStrokeStyle(2, INK, 0.85);
+    this.add.rectangle(x + 8, y - 8, 36, 18, color).setStrokeStyle(2, INK, 0.9);
+    this.add.rectangle(x + 8, y - 8, 36, 3, 0xffffff, 0.25);
   }
 
   private createPlayer() {
-    const zone = getZone(this.zoneId); this.player = this.add.container(zone.spawn.x, zone.spawn.y);
-    const shadow = this.add.ellipse(0, 14, 34, 12, 0x35463a, 0.48);
-    const boots = this.add.rectangle(0, 9, 18, 18, 0x5a463c).setStrokeStyle(2, INK, 1);
-    const coat = this.add.rectangle(0, -2, 24, 24, 0xd8784f).setStrokeStyle(2, INK, 1);
-    const face = this.add.rectangle(0, -18, 18, 15, 0xf0bd82).setStrokeStyle(2, INK, 1);
-    const hat = this.add.rectangle(0, -28, 26, 8, 0x476b5b).setStrokeStyle(2, INK, 1);
-    this.rod = this.add.rectangle(22, -10, 4, 36, 0xd3a45d).setOrigin(0.5).setAngle(36);
-    this.player.add([shadow, boots, coat, face, hat, this.rod]);
-    this.playerLabel = this.add.text(zone.spawn.x, zone.spawn.y - 37, this.name, { fontFamily: "monospace", fontSize: "12px", color: CREAM, stroke: "#314338", strokeThickness: 4 }).setOrigin(0.5);
+    const zone = getZone(this.zoneId);
+    this.player = this.add.container(zone.spawn.x, zone.spawn.y);
+
+    const shadow = this.add.ellipse(0, 16, 28, 10, 0x2a3828, 0.45);
+    // Legs
+    const legL = this.add.rectangle(-5, 10, 8, 14, 0x4a5c70).setStrokeStyle(1, INK, 1);
+    const legR = this.add.rectangle(5, 10, 8, 14, 0x4a5c70).setStrokeStyle(1, INK, 1);
+    // Body / coat
+    const coat = this.add.rectangle(0, -2, 22, 22, 0xd8784f).setStrokeStyle(2, INK, 1);
+    const collar = this.add.rectangle(0, -12, 18, 6, 0xc06840).setStrokeStyle(1, INK, 0.8);
+    // Head
+    const face = this.add.rectangle(0, -20, 16, 14, 0xf0bd82).setStrokeStyle(2, INK, 1);
+    const eyeL = this.add.rectangle(-4, -21, 2, 2, INK);
+    const eyeR = this.add.rectangle(4, -21, 2, 2, INK);
+    // Hat
+    const hatBrim = this.add.rectangle(0, -28, 24, 5, 0x3d6b55).setStrokeStyle(1, INK, 1);
+    const hatTop = this.add.rectangle(0, -34, 16, 10, 0x476b5b).setStrokeStyle(2, INK, 1);
+    // Rod
+    this.rod = this.add.rectangle(20, -8, 3, 34, 0xd3a45d).setOrigin(0.5).setAngle(36);
+
+    this.player.add([shadow, legL, legR, coat, collar, face, eyeL, eyeR, hatBrim, hatTop, this.rod]);
+    this.playerLabel = this.add
+      .text(zone.spawn.x, zone.spawn.y - 42, this.name, {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: CREAM,
+        stroke: "#314338",
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5);
     this.updateRodPose();
   }
 
