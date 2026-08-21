@@ -11,6 +11,7 @@ const WORLD_HEIGHT = 540;
 const PLAYER_SPEED = 176;
 const INK = 0x293b36;
 const CREAM = "#fff5d8";
+const SCALLYWAG_ISLANDS = "https://files.manuscdn.com/user_upload_by_module/session_file/310519663905510199/pNSAFEGYjVYiOnJg.png";
 
 export class FishingScene extends Phaser.Scene {
   private readonly bridge: Phaser.Events.EventEmitter;
@@ -38,6 +39,10 @@ export class FishingScene extends Phaser.Scene {
   private remotePlayers = new Map<string, RemoteAvatar>();
 
   constructor(bridge: Phaser.Events.EventEmitter) { super({ key: "FishingScene" }); this.bridge = bridge; }
+
+  preload() {
+    if (!this.textures.exists("scallywag-islands")) this.load.image("scallywag-islands", SCALLYWAG_ISLANDS);
+  }
 
   create() {
     this.controls = this.input.keyboard?.addKeys({ up: Phaser.Input.Keyboard.KeyCodes.W, down: Phaser.Input.Keyboard.KeyCodes.S, left: Phaser.Input.Keyboard.KeyCodes.A, right: Phaser.Input.Keyboard.KeyCodes.D, arrowUp: Phaser.Input.Keyboard.KeyCodes.UP, arrowDown: Phaser.Input.Keyboard.KeyCodes.DOWN, arrowLeft: Phaser.Input.Keyboard.KeyCodes.LEFT, arrowRight: Phaser.Input.Keyboard.KeyCodes.RIGHT, interact: Phaser.Input.Keyboard.KeyCodes.F, cast: Phaser.Input.Keyboard.KeyCodes.SPACE }) as Controls;
@@ -89,15 +94,20 @@ export class FishingScene extends Phaser.Scene {
   private drawZone() {
     this.remotePlayers.clear(); this.children.removeAll();
     const zone = getZone(this.zoneId);
-    this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, zone.palette.ground).setOrigin(0.5);
-    for (let x = 12; x < WORLD_WIDTH; x += 24) for (let y = 16; y < WORLD_HEIGHT; y += 24) {
-      const color = (x / 24 + y / 24) % 3 === 0 ? 0xaec381 : (x / 24 + y / 24) % 2 === 0 ? 0x74935d : 0x8fa86c;
-      this.add.rectangle(x, y, 4, 3, color, 0.58).setOrigin(0.5);
+    const usesScallywagMap = zone.id !== "moonlit-inlet" && this.textures.exists("scallywag-islands");
+    if (usesScallywagMap) {
+      this.add.image(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, "scallywag-islands").setDisplaySize(WORLD_WIDTH, WORLD_HEIGHT).setOrigin(0.5);
+    } else {
+      this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, WORLD_WIDTH, WORLD_HEIGHT, zone.palette.ground).setOrigin(0.5);
+      for (let x = 12; x < WORLD_WIDTH; x += 24) for (let y = 16; y < WORLD_HEIGHT; y += 24) {
+        const color = (x / 24 + y / 24) % 3 === 0 ? 0xaec381 : (x / 24 + y / 24) % 2 === 0 ? 0x74935d : 0x8fa86c;
+        this.add.rectangle(x, y, 4, 3, color, 0.58).setOrigin(0.5);
+      }
+      zone.water.forEach(water => this.drawWater(water, zone.palette.water, zone.palette.glow));
+      this.drawBoardwalk(96, 488, 764, zone.palette.path);
+      this.drawBoardwalk(334, 320, 240, zone.palette.path);
     }
-    zone.water.forEach(water => this.drawWater(water, zone.palette.water, zone.palette.glow));
-    this.drawBoardwalk(96, 488, 764, zone.palette.path);
-    this.drawBoardwalk(334, 320, 240, zone.palette.path);
-    this.drawProps(zone.interactions, zone.palette.accent, zone.palette.glow);
+    this.drawProps(zone.interactions, zone.palette.accent, zone.palette.glow, !usesScallywagMap);
   }
 
   private drawBoardwalk(x: number, y: number, width: number, color: number) {
@@ -114,8 +124,8 @@ export class FishingScene extends Phaser.Scene {
     }
   }
 
-  private drawProps(interactions: WorldInteraction[], accent: number, shore: number) {
-    for (let x = 64; x < WORLD_WIDTH; x += 142) this.drawTree(x, 428 - ((x / 36) % 3) * 25, accent);
+  private drawProps(interactions: WorldInteraction[], accent: number, shore: number, addTrees: boolean) {
+    if (addTrees) for (let x = 64; x < WORLD_WIDTH; x += 142) this.drawTree(x, 428 - ((x / 36) % 3) * 25, accent);
     interactions.forEach(interaction => {
       if (interaction.kind === "shop") this.drawCabin(interaction.x, interaction.y, accent);
       else if (interaction.kind === "storage") this.drawChest(interaction.x, interaction.y, accent);
