@@ -24,6 +24,7 @@ export type PublicPlayerState = {
 export type GameCommand =
   | { type: "cast" }
   | { type: "interact" }
+  | { type: "move"; x: number; y: number }
   | { type: "travel"; zoneId: ZoneId }
   | { type: "set-display-name"; name: string }
   | { type: "remote-player"; player: PublicPlayerState }
