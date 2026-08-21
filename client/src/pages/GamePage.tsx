@@ -427,6 +427,28 @@ export default function GamePage() {
         </aside>
       </section>
 
+      {/* Phone bottom dock: meters + bag + chest */}
+      <nav className="mobile-dock" aria-label="Quick actions">
+        <div className="mobile-meter">
+          <label>STAMINA {stamina}</label>
+          <div className="meter"><i style={{ width: `${stamina}%` }} /></div>
+        </div>
+        <div className="mobile-meter rod">
+          <label>ROD {durability}</label>
+          <div className="meter"><i style={{ width: `${durability}%` }} /></div>
+        </div>
+        <button type="button" className="mobile-dock-btn" onClick={() => setPanel("inventory")}>
+          <Backpack size={18} />
+          <span>Bag</span>
+          <b>{fish.length + inventory.reduce((t, i) => t + i.qty, 0)}</b>
+        </button>
+        <button type="button" className="mobile-dock-btn" onClick={() => setPanel("storage")}>
+          <Archive size={18} />
+          <span>Chest</span>
+          <b>{storage.length}/12</b>
+        </button>
+      </nav>
+
       <Dialog open={panel !== null} onOpenChange={open => !open && setPanel(null)}>
         <DialogContent>
           <DialogHeader>
